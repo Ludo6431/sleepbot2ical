@@ -9,6 +9,20 @@ def readSB(f):
     f.seek(0)
     return csv.DictReader(f, dialect = dialect)
 
+def new2oldref(sleep):
+    ret = {}
+    ret['Date'] = datetime.strptime(sleep['Date'], '%d/%m/%y').strftime('%d-%m-%Y')
+    ret['Sleep Time'] = sleep[' Sleep Time']
+    ret['Awake Time'] = sleep[' Wake Time']
+    tmp = float(sleep[' Hours'])
+    h = int(tmp)
+    tmp -= h
+    m = int(tmp * 60)
+    ret['Duration'] = '{0:02} hr {1:02} min'.format(h, m)
+    ret['Rating'] = sleep['Note']
+#    print 'ret', ret
+    return ret
+
 def sleep2dates(sleep):
     duration = datetime.strptime(sleep['Duration'], '%H hr %M min')
     duration = timedelta(hours=duration.hour, minutes=duration.minute)
@@ -31,10 +45,14 @@ def writeIcal(sleeps, f, fmt='Sleeping...zzZzz'):
     cal.add('version', '2.0')
     
     for sleep in sleeps:
-        dts = sleep2dates(sleep)
-
         event = Event()
-        event.add('summary', fmt.format(**sleep))
+        try:
+            dts = sleep2dates(sleep)
+            event.add('summary', fmt.format(**sleep))
+        except KeyError:
+            sleep = new2oldref(sleep)
+            dts = sleep2dates(sleep)
+            event.add('summary', fmt.format(**sleep))
         event.add('dtstart', dts[0])
         event.add('dtend', dts[1])
         event['uid'] = md5.new(str(dts[0])+'SleepBot'+str(dts[1])).hexdigest()+'@mysleepbot.com'
